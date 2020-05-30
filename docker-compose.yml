@@ -1,8 +1,8 @@
----
 version: '3'
-# This instance is using SQLite3 as database backend.
-# Please consider using a proper database like MariaDB or PostgreSQL
-# if you want to use this productive.
+
+networks:
+  nextcloud_network:
+    external: false
 
 services:
   nextcloud:
@@ -10,15 +10,51 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.18.0
+    depends_on:
+      - nextcloud-db           # If using MySQL
+      - redis                  # If using Redis
     environment:
       - UID=1000
       - GID=1000
-      - ADMIN_USER=mrrobot
-      - ADMIN_PASSWORD=supercomplicatedpassword
-      - DB_TYPE=sqlite
+      - UPLOAD_MAX_SIZE=10G
+      - APC_SHM_SIZE=128M
+      - OPCACHE_MEM_SIZE=128
+      - CRON_PERIOD=15m
+      - TZ=Europe/Moscow
+      - DOMAIN= # TODO
+      - DB_TYPE=mysql
+      - DB_NAME=nextcloud
+      - DB_USER=nextcloud
+      - DB_PASSWORD= # TODO
+      - DB_HOST=nextcloud-db
     volumes:
-      - ./data:/data
-      - ./config:/config
-      - ./apps:/apps2
+      - /volume1/cloud/data:/data
+      - /volume1/cloud/config:/config
+      - /volume1/cloud/apps:/apps2
+      - /volume1/cloud/themes:/nextcloud/themes
+    networks:
+      - nextcloud_network
     ports:
       - 8888:8888
+
+  # If using MySQL
+  nextcloud-db:
+    image: mariadb
+    volumes:
+      - /volume1/cloud/db:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD= # TODO
+      - MYSQL_DATABASE=nextcloud
+      - MYSQL_USER=nextcloud
+      - MYSQL_PASSWORD= # TODO
+    networks:
+      - nextcloud_network
+
+  # If using Redis
+  redis:
+    image: redis:alpine
+    container_name: redis
+    volumes:
+      - /volume1/cloud/redis:/data
+    networks:
+      - nextcloud_network
